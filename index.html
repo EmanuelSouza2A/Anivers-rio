@@ -2,80 +2,69 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>SISTEMA ELITE - ACESSO RESTRITO</title>
+    <title>MAINFRAME - OVERRIDE MOTHER_BDAY</title>
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css" />
     <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', Courier, monospace; }
-        canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; opacity: 0.3; }
+        :root { --neon: #00ff41; --pink: #ff0055; --bg: #050505; }
+        body { background: var(--bg); color: var(--neon); font-family: 'Courier New', Courier, monospace; margin: 0; overflow: hidden; }
         
-        #overlay { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
-        
-        #terminal {
-            background: rgba(0, 10, 0, 0.85);
-            border: 2px solid #0f0;
-            box-shadow: 0 0 20px #0f0, inset 0 0 10px #0f0;
-            width: 80%; max-width: 800px; min-height: 450px;
-            padding: 30px; border-radius: 5px; position: relative;
-            visibility: hidden; /* Escondido até o clique */
+        /* Efeito de Scanlines (Linhas de TV antiga) */
+        body::before {
+            content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 10; background-size: 100% 2px, 3px 100%; pointer-events: none;
         }
 
-        .btn-unlock {
-            padding: 20px 50px; font-size: 1.5rem; background: transparent;
-            color: #0f0; border: 2px solid #0f0; cursor: pointer;
-            text-transform: uppercase; letter-spacing: 5px; font-weight: bold;
-            box-shadow: 0 0 15px #0f0; transition: 0.3s; z-index: 3;
+        #ui-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; z-index: 5; position: relative; }
+        
+        #console-container {
+            width: 90%; max-width: 900px; height: 550px;
+            border: 1px solid var(--neon); background: rgba(0, 20, 0, 0.9);
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.2);
+            display: grid; grid-template-columns: 200px 1fr; gap: 10px; padding: 10px;
+            visibility: hidden;
         }
-        .btn-unlock:hover { background: #0f0; color: #000; box-shadow: 0 0 40px #0f0; }
 
-        .glitch { color: #fff; text-shadow: 2px 0 #f0f, -2px 0 #0ff; animation: glitch 1s infinite; }
-        @keyframes glitch { 
-            0% { transform: translate(0); } 20% { transform: translate(-2px, 2px); }
-            40% { transform: translate(-2px, -2px); } 60% { transform: translate(2px, 2px); }
-            80% { transform: translate(2px, -2px); } 100% { transform: translate(0); }
+        .sidebar { border-right: 1px solid var(--neon); padding: 10px; font-size: 10px; }
+        .main-view { padding: 20px; overflow-y: auto; position: relative; scrollbar-width: none; }
+        
+        .btn-launch {
+            padding: 25px 60px; font-size: 1.8rem; background: none; border: 3px solid var(--neon);
+            color: var(--neon); cursor: pointer; text-shadow: 0 0 10px var(--neon);
+            transition: 0.5s; font-weight: bold; animation: pulse 2s infinite;
         }
-        .text-pink { color: #ff00ff; text-shadow: 0 0 10px #ff00ff; }
-        .text-cyan { color: #00ffff; text-shadow: 0 0 10px #00ffff; }
-        pre { font-size: 12px; color: #ffea00; }
+        .btn-launch:hover { background: var(--neon); color: black; box-shadow: 0 0 50px var(--neon); }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .log-entry { font-size: 12px; margin: 2px 0; opacity: 0.8; }
+        .pink-msg { color: var(--pink); text-shadow: 0 0 8px var(--pink); font-weight: bold; }
+        pre { font-size: 11px; line-height: 1; color: #fdfd96; }
     </style>
 </head>
 <body>
-    <canvas id="matrix"></canvas>
 
-    <div id="overlay">
-        <button id="btn-iniciar" class="btn-unlock" py-click="executar_elite">INICIAR DECODIFICAÇÃO</button>
-        
-        <div id="terminal">
-            <div id="output"></div>
+<div id="ui-wrapper">
+    <button id="btn-master" class="btn-launch" py-click="start_protocol">EXECUTAR PROTOCOLO_MÃE.EXE</button>
+
+    <div id="console-container">
+        <div class="sidebar" id="sidebar">
+            <h3>STATUS</h3>
+            <p>CPU: [||||||||||] 99%</p>
+            <p>RAM: [||||||....] 64%</p>
+            <p>HEART: [∞∞∞∞∞∞∞∞∞∞]</p>
+            <br>
+            <p>USER: FILHO_ELITE</p>
+            <p>TARGET: MÃE_SISTEMA</p>
+            <hr>
+            <div id="mini-logs"></div>
+        </div>
+        <div class="main-view" id="main-view">
+            <div id="output-stream"></div>
         </div>
     </div>
+</div>
 
-    <script>
-        // EFEITO MATRIX DE FUNDO
-        const canvas = document.getElementById('matrix');
-        const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*";
-        const fontSize = 16;
-        const columns = canvas.width / fontSize;
-        const drops = Array(Math.floor(columns)).fill(1);
-
-        function draw() {
-            ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#0f0";
-            ctx.font = fontSize + "px monospace";
-            for (let i = 0; i < drops.length; i++) {
-                const text = letters.charAt(Math.floor(Math.random() * letters.length));
-                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
-                drops[i]++;
-            }
-        }
-        setInterval(draw, 33);
-    </script>
-
-    <script type="py" src="./script.py"></script>
+<script type="py" src="./script.py"></script>
 </body>
 </html>
